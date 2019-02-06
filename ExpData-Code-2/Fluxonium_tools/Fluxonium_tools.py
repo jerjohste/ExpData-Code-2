@@ -7,6 +7,7 @@ from scipy.special import hermite
 from math import factorial
 from scipy.interpolate import spline
 from matplotlib.colors import Normalize, LogNorm
+from IPython.display import display
 
 #helper class to define the fancy color scales
 class MidpointNormalize(Normalize):
