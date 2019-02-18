@@ -138,8 +138,10 @@ class Fluxonium:
         H = fluxonium_data['hamiltonian']
         rho = (-H/(kB*T/h)).expm()/((-H/(kB*T/h)).expm()).tr()
         eigenstates = fluxonium_data['eigenstates']
+        occupations = []
         for i in range(N):
-            print((eigenstates[i]*eigenstates[i].dag()*rho).tr())
+            occupations.append((eigenstates[i]*eigenstates[i].dag()*rho).tr())
+        return occupations
             
     #calculates the dispersive shift of the transition between lvl0 and lvl1 depending on the flux point and the cavity resonance
     def dispersive_shift(self,lvl0,lvl1,fcav,phiext,g=1):
@@ -164,7 +166,7 @@ class Fluxonium:
             chi1 += sum_element(lvl1,i)
             shift += sum_element(lvl0,i) #we don't need to check if the i==lvl0 because the transition frequency is 0 so it will not contribute to the sum
             shift -= sum_element(lvl1,i)
-        return shift*g, chi0*g, chi1*g
+        return shift*g**2, chi0*g**2, chi1*g**2
     
     #plots the dispersive shift calculated for the flux poiints given by phiext
     def plot_dispersive_shift(self,lvl0,lvl1,fcav,phiext=np.linspace(-1,1,100)):
