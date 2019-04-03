@@ -16,8 +16,6 @@ class MidpointNormalize(Normalize):
             Normalize.__init__(self, vmin, vmax, clip)
 
         def __call__(self, value, clip=None):
-            # I'm ignoring masked values and all kinds of edge cases to make a
-            # simple example...
             x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
             return np.ma.masked_array(np.interp(value, x, y))
 
@@ -41,11 +39,11 @@ class Fluxonium:
             return ham.copy()
     
     #calculates the spectrum of the fluxonium qubit for a given flux
-    #It calculates the transisitions from the levels in a to all other levels below and including level Nmax
+    #It calculates the transisitions from all levels in lvls to all levels in lvls, negative frequencies are given as 0
     #Can return various Hamiltonian parameters as well if needed
     #Transitions has dimensions (Nmax+1,Nmax+1) so that you can look up the transition from i to j by looking at the element (i,j). ! (j,i) for j>i will not be filled
-    def spectrum(self,phiext,a=[0,1],Nmax = 2,full_info = False): 
-        Nmax += 1 #this means Nmax is included
+    def spectrum(self,phiext,lvls=[0,1],full_info = False): 
+        N = len(lvls) #this means Nmax is included
         if full_info:
             H, n, phi = self.H_fluxonium(phiext,operators=True)
         else:
@@ -54,10 +52,8 @@ class Fluxonium:
         eigenvalues, eigenstates = H.eigenstates()
         eigenvalues = eigenvalues.round(5)
 
-        transitions2D = np.zeros((Nmax,Nmax))
-        for i in range(len(a)):
-            start = a[i]
-            transitions2D[start,start:] = eigenvalues[start:Nmax]-eigenvalues[start]
+        transition_mat = np.array([[eigenvalues[lvl2]-eigenvalues[lvl1] for lvl2 in lvls] for lvl1 in lvls])
+        transitions2D = np.where(transition_mat<0,0,transition_mat)
 
         if full_info:
             return {'transitions': np.array(transitions2D), 'hamiltonian': H.copy(),
@@ -65,7 +61,7 @@ class Fluxonium:
                     'eigenvals': eigenvalues, 'eigenstates': eigenstates}
         else:
             return {'transitions': np.array(transitions2D)}
-    
+        
     #defines the fluxonium potential
     def potential(self,phi,phiext):
         return -self.Ej*np.cos(phi+phiext)+0.5*self.El*phi**2
@@ -91,11 +87,11 @@ class Fluxonium:
     
     #plots the fluxonium potential with its N first wavefunctions for a given flux bias
     def show_wave_functions(self,N,phiext):
-        fluxonium_data = self.spectrum(phiext,a=[0],Nmax = 1,full_info = True)
+        fluxonium_data = self.spectrum(phiext,lvls=np.arange(0,N+1,1),full_info = True)
         eigenstates = fluxonium_data['eigenstates']
         eigenenergies = fluxonium_data['eigenvals']
-        Phi = np.linspace(-1,1,100)
-        wavefunctions = [self.wave_function(eigenstates[i].full().flatten(),phi = Phi*2*np.pi) + eigenenergies[i] for i in range(N)]
+        Phi = 2*np.pi*np.linspace(-1,1,100)
+        wavefunctions = [self.wave_function(eigenstates[i].full().flatten(),phi = Phi) + eigenenergies[i] for i in range(N)]
         
         plt.figure()
         plt.plot(Phi,self.potential(Phi*2*np.pi,phiext),c='C0')
@@ -107,18 +103,18 @@ class Fluxonium:
         plt.show()
         
     #calculates the transitions over a wide flux span
-    def transition_spectrum(self,phiext = np.linspace(-1,1,100),a = [0,1],N=2):
-        transitions = np.array([self.spectrum(flx*2*np.pi,a,N)['transitions'] for flx in phiext])
+    def transition_spectrum(self,phiext = 2*np.pi*np.linspace(0,1,101),lvls=[0,1,2]):
+        transitions = np.array([self.spectrum(flx,lvls)['transitions'] for flx in phiext])
         return transitions
         
     #plots the spectrum of the fluxonium object (with it's own parameters)
-    def plot_spectrum(self,phiext = np.linspace(-1,1,100),a = [0,1],N=2):
+    def plot_spectrum(self,phiext = np.linspace(0,1,101),lvls = [0,1,2]):
         #calculate transitions
-        transitions = self.transition_spectrum(phiext=phiext,a=a,N=N)
+        transitions = self.transition_spectrum(phiext=phiext,lvls=lvls)
 
         plt.figure('Spectrum')
         
-        dimension = len(a)+N-a[-1]-1
+        dimension = len(lvls)-1
         for i in range(dimension):
             for j in range(dimension):
                 jj = j + 1
@@ -134,7 +130,7 @@ class Fluxonium:
     def thermal_occupation(self,phiext,T,N=5):
         kB = 1.38e-23
         h = 6.626e-34*1e9 #so that we are in GHz
-        fluxonium_data = self.spectrum(phiext*2*np.pi,a=[0],Nmax = 1,full_info = True)
+        fluxonium_data = self.spectrum(phiext,lvls=[0,1],full_info = True)
         H = fluxonium_data['hamiltonian']
         rho = (-H/(kB*T/h)).expm()/((-H/(kB*T/h)).expm()).tr()
         eigenstates = fluxonium_data['eigenstates']
@@ -142,9 +138,9 @@ class Fluxonium:
         for i in range(N):
             occupations.append((eigenstates[i]*eigenstates[i].dag()*rho).tr())
         return occupations
-            
-    #calculates the dispersive shift of the transition between lvl0 and lvl1 depending on the flux point and the cavity resonance
-    def dispersive_shift(self,lvl0,lvl1,fcav,phiext,g=1):
+
+    #calculates the dispersive shift of all the transitions in the list lvls and optionnally returns the matrix of the two by two differences
+    def dispersive_shift(self,lvls,fcav,phiext,g=1):
         fluxonium_data = self.spectrum(phiext,a=np.arange(0,self.Hilbert_dim,1),Nmax = self.Hilbert_dim-1,full_info = True)
         n = fluxonium_data['charge_op']
         eigenstates = fluxonium_data['eigenstates']
@@ -158,22 +154,19 @@ class Fluxonium:
             return -abs(n.matrix_element(eigenstates[lvla].dag(),eigenstates[lvlb]))**2*2*transitions[lvla,lvlb] \
                         /(transitions[lvla,lvlb]**2-fcav**2)
 
-        shift = 0
-        chi0 = 0 
-        chi1 = 0
-        for i in range(self.Hilbert_dim-1):
-            chi0 += sum_element(lvl0,i)
-            chi1 += sum_element(lvl1,i)
-            shift += sum_element(lvl0,i) #we don't need to check if the i==lvl0 because the transition frequency is 0 so it will not contribute to the sum
-            shift -= sum_element(lvl1,i)
-        return shift*g**2, chi0*g**2, chi1*g**2
+        chis = np.zeros_like(lvls,dtype=float)
+        for index, lvl in enumerate(lvls):
+            for i in range(self.Hilbert_dim-1):
+                chis[index] += sum_element(lvl,i)
+        shifts = np.array([[chis[j]-chis[i] for i in range(len(chis))] for j in range(len(chis))])
+        return chis*g**2, shifts*g**2
     
     #plots the dispersive shift calculated for the flux poiints given by phiext
-    def plot_dispersive_shift(self,lvl0,lvl1,fcav,phiext=np.linspace(-1,1,100)):
+    def plot_dispersive_shift(self,lvl0,lvl1,fcav,phiext=2*np.pi*np.linspace(0,1,101)):
         from matplotlib.collections import LineCollection
         
-        transitions = self.transition_spectrum(phiext,[lvl0],lvl1)[:,lvl0,lvl1]
-        shifts = [self.dispersive_shift(lvl0,lvl1,fcav,flx*2*np.pi) for flx in phiext] 
+        transitions = self.transition_spectrum(phiext,[lvl0,lvl1])[:,lvl0,lvl1]
+        shifts = [self.dispersive_shift([lvl0,lvl1],fcav,flx)[1][0,1] for flx in phiext] 
         
         points = np.array([phiext,transitions]).T.reshape(-1,1,2) #creates list of point defining the curve
         segments = np.concatenate([points[:-1], points[1:]], axis=1) #creates the segments defining the curve
@@ -250,14 +243,14 @@ class Fluxonium:
         fluxonium_data = self.spectrum(phiext,a=np.arange(0,self.Hilbert_dim,1),Nmax = self.Hilbert_dim-1,full_info = True)
         eigenstates = fluxonium_data['eigenstates']
         op = fluxonium_data[operator+'_op']
-        return op.matrix_element(eigenstates[lvl0].trans(),eigenstates[lvl1])
+        return op.matrix_element(eigenstates[lvl0].dag(),eigenstates[lvl1])
     
     #plot the matrix elements for the flux points given by phiext
-    def plot_matrix_element(self,lvl0,lvl1,phiext = np.linspace(-1,1,100),operator='charge'):
+    def plot_matrix_element(self,lvl0,lvl1,phiext = 2*np.pi*np.linspace(0,1,101),operator='charge'):
         from matplotlib.collections import LineCollection
 
         transitions = self.transition_spectrum(phiext,[lvl0],lvl1)[:,lvl0,lvl1]
-        matrix_elements = [abs(self.matrix_element(lvl0,lvl1,flx*2*np.pi,operator))**2 for flx in phiext]
+        matrix_elements = [abs(self.matrix_element(lvl0,lvl1,flx,operator))**2 for flx in phiext]
 
         points = np.array([phiext,transitions]).T.reshape(-1,1,2) #creates list of point defining the curve
         segments = np.concatenate([points[:-1], points[1:]], axis=1) #creates the segments defining the curve
@@ -339,27 +332,31 @@ def fit_fluxonium_spectrum(spectrum_images,xs,ys,**topkwargs):
     Xs, Ys = meshgrids(xs,ys)
     
     #helper function to plot fluxonium spectrum above an image
-    phiext = np.linspace(0,1,51)
+    phiext = 2*np.pi*np.linspace(0,1,51)
     def update_plot(Ec,El,Ej,alpha,beta,**kwargs):
         
         model = Fluxonium(Ec,El,Ej,50)
         #clear figure
-        plt.clf()
+        plt.cla()
         
         #plot images
         for i in range(image_num):
-            plt.pcolormesh(Xs[i],Ys[i],spectrum_images[i])
+            vmin, vmax = np.percentile(spectrum_images[i].flatten(),[1,99])
+            plt.pcolormesh(Xs[i],Ys[i],spectrum_images[i],vmin=vmin,vmax=vmax)
             
         #calculate transitions
-        transitions = model.transition_spectrum(phiext,a=[0,1],N=2)
+        transitions = model.transition_spectrum(phiext,lvls=[0,1,2])
         
         #plot overlay
         i,j,k = transitions.shape
+        count = 0
+        colours = ['red','orange','pink']
         for jj in range(j):
             for kk in range(k):
                 if kk>jj:
-                    plt.plot(alpha*(phiext-np.median(phiext))+beta,transitions[:,jj,kk],c='C'+str(jj*k+kk),
+                    plt.plot(alpha*(phiext-np.median(phiext))+beta,transitions[:,jj,kk],c=colours[count],
                              label=str(jj)+'->'+str(kk))
+                    count += 1
             
         #show plot
         plt.xlabel(r'Voltage [V]')
@@ -371,7 +368,7 @@ def fit_fluxonium_spectrum(spectrum_images,xs,ys,**topkwargs):
 
     # actual generation of the interactive plot
     plt.figure('Spectrum')
-    interactive_plot = interactive(update_plot, Ec=(0, 1,0.01), El=(0, 1,0.01),Ej=(0,3,0.1),alpha = (0,3,0.01),beta=(0,2,0.01))
+    interactive_plot = interactive(update_plot, Ec=(0.1, 2,0.01), El=(0.1, 2,0.01),Ej=(0.1,5,0.1),alpha = (0,3,0.01),beta=(0,2,0.01))
     display(interactive_plot)
 
 #finds all the inverse images for a value of y given some data
