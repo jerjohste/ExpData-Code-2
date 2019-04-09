@@ -141,7 +141,7 @@ class Fluxonium:
 
     #calculates the dispersive shift of all the transitions in the list lvls and optionnally returns the matrix of the two by two differences
     def dispersive_shift(self,lvls,fcav,phiext,g=1):
-        fluxonium_data = self.spectrum(phiext,a=np.arange(0,self.Hilbert_dim,1),Nmax = self.Hilbert_dim-1,full_info = True)
+        fluxonium_data = self.spectrum(phiext,np.arange(0,self.Hilbert_dim,1),full_info = True)
         n = fluxonium_data['charge_op']
         eigenstates = fluxonium_data['eigenstates']
         transitions = fluxonium_data['transitions']
@@ -239,12 +239,13 @@ class Fluxonium:
         display(interactive_plot)
 
     #find the matrix element of given transition mediated by a given operator
-    def matrix_element(self,lvl0,lvl1,phiext,operator='charge'): #possible operators: 'charge', 'phase'
-        fluxonium_data = self.spectrum(phiext,a=np.arange(0,self.Hilbert_dim,1),Nmax = self.Hilbert_dim-1,full_info = True)
+    def matrix_element(self,lvls,phiext,operator='charge'): #possible operators: 'charge', 'phase'
+        fluxonium_data = self.spectrum(phiext,[0,1],full_info = True)
         eigenstates = fluxonium_data['eigenstates']
         op = fluxonium_data[operator+'_op']
-        return op.matrix_element(eigenstates[lvl0].dag(),eigenstates[lvl1])
-    
+        mat_els = np.array([[op.matrix_element(eigenstates[lvl1].dag(),eigenstates[lvl2]) for lvl2 in lvls] for lvl1 in lvls])
+        return mat_els
+
     #plot the matrix elements for the flux points given by phiext
     def plot_matrix_element(self,lvl0,lvl1,phiext = 2*np.pi*np.linspace(0,1,101),operator='charge'):
         from matplotlib.collections import LineCollection
