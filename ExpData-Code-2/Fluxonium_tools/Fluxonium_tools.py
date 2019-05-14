@@ -8,6 +8,7 @@ from math import factorial
 from scipy.interpolate import spline
 from matplotlib.colors import Normalize, LogNorm
 from IPython.display import display
+import itertools
 
 #helper class to define the fancy color scales
 class MidpointNormalize(Normalize):
@@ -272,6 +273,104 @@ class Fluxonium:
         ax2.plot(phiext,matrix_elements)
         ax2.set_ylabel('Matrix Element Magnitude [a.u.]')
         ax2.set_xlabel(r'Flux [/$\Phi_0$]')        
+        plt.show()
+
+    # plots the chose properties for all levels in levels at a given flux point
+    # ktot is only necessary if Rabi_charge or Rabi_phase are chosen
+    def plot_level_properties(self,phiext,fcav,levels,prop_list,ktot=0):
+        """
+        prop_list is a list of any of the following: 
+        'Dispersive_shift'
+        'Rabi_charge'
+        'Rabi_phase'
+        'Charge_matrix_els'
+        'Phase_matrix_els'
+        """
+        #define dictionary of properties
+        keylist = ['Dispersive_shift','Rabi_charge','Rabi_phase','Charge_matrix_els','Phase_matrix_els'] 
+        axlabels = [r'$\frac{\chi}{g^2}$',r'$\Omega^n$',r'$\Omega^\varphi$',r'$|<i|n|j>|$',r'$|<i|\varphi|j>|$']
+        axdict = dict(zip(keylist,axlabels))
+
+        transitions = list(itertools.combinations(levels,2)) # make pairs of levels
+        freqs = self.spectrum(0.5*np.pi*2,levels)['transitions'] # obtain transition frequencies
+        tups = {} # define empty dict which we will use for the data later in tuple form
+        
+        if 'Dispersive_shift' in prop_list:
+            shifts = self.dispersive_shift(levels,fcav,0.5*np.pi*2) # calculate dispersive shifts
+            freq_shift_tups = [(trans,freqs[trans],shifts[1][trans]) for trans in transitions] #create tuple
+            tups['Dispersive_shift'] = freq_shift_tups #add to dict
+            
+        if 'Rabi_charge' in prop_list:
+            if 'charge' not in locals():
+                charge = self.matrix_element(levels,0.5*np.pi*2,'charge')
+            freq_chargerabi_tups = [(trans,freqs[trans],
+                                    np.sqrt(freqs[trans]/(ktot**2+4*(fcav-freqs[trans])**2))*abs(charge[trans])) \
+                                for trans in transitions]
+            tups['Rabi_charge'] = freq_chargerabi_tups
+            
+        if 'Charge_matrix_els' in prop_list:
+            if 'charge' not in locals():
+                charge = self.matrix_element(levels,0.5*np.pi*2,'charge')
+            freq_charge_tups = [(trans,freqs[trans],abs(charge[trans])) for trans in transitions]
+            tups['Charge_matrix_els'] = freq_charge_tups
+            
+        if 'Rabi_phase' in prop_list:
+            if 'phase' not in locals():
+                phase = self.matrix_element(levels,0.5*np.pi*2,'phase')
+            freq_phaserabi_tups = [(trans,freqs[trans],
+                                    np.sqrt(freqs[trans]**1.5/(ktot**2+4*(fcav-freqs[trans])**2))*abs(phase[trans])) \
+                                for trans in transitions]
+            tups['Rabi_phase'] = freq_phaserabi_tups
+            
+        if 'Phase_matrix_els' in prop_list:
+            if 'phase' not in locals():
+                phase = self.matrix_element(levels,0.5*np.pi*2,'phase')
+            freq_phase_tups = [(trans,freqs[trans],abs(phase[trans])) for trans in transitions]
+            tups['Phase_matrix_els'] = freq_phase_tups
+            
+        fignum = len(prop_list)
+        fig, axs = plt.subplots(1,fignum,figsize=(8,6),sharey=True) #create figure with as many plots as necessary
+        
+        for k, prop in enumerate(prop_list):
+            if len(prop_list) == 1: # make sure the figure axes are treated correctly 
+                ax = axs 
+            else:
+                ax = axs[k]
+            toplot = tups[prop]
+            
+            if prop == 'Dispersive_shift': # the dispersive shift plot is slightly difference than the others because of negative values
+                
+                for i, el in enumerate(toplot):
+                    if el[2] != 0:
+                        ax.set_xscale('symlog')
+                        ax.scatter(el[2],el[1],c='C'+str(el[0][0]))
+                        ax.hlines(el[1],0,el[2],color='C'+str(el[0][0]))
+                        if el[2] < 0:
+                            ax.annotate(str(el[0]),(el[2],el[1]),(-35,-3),color='C'+str(el[0][0]),textcoords='offset points')
+                        else:
+                            ax.annotate(str(el[0]),(el[2],el[1]),(10,-3),color='C'+str(el[0][0]),textcoords='offset points')
+                    else:
+                        ax.annotate(str(el[0]),(xmin,el[1]),(20,-3),color='C'+str(el[0][0]),textcoords='offset points',arrowprops={'arrowstyle':'->','color':'C'+str(el[0][0])})
+                        ax.annotate('<---', (0,el[1]-0.1),color='C'+str(el[0][0]))
+                ax.axvline(x=0,linestyle='-',color='black',lw=0.5)            
+            
+            else:
+                
+                xmin = np.min([ch[2] for ch in toplot if ch[2] > 0])
+                for i, el in enumerate(toplot):
+                    if el[2] != 0:
+                        ax.semilogx(el[2],el[1],'.',c='C'+str(el[0][0]),marker='o')
+                        ax.hlines(el[1],0,el[2],color='C'+str(el[0][0]))
+                        ax.annotate(str(el[0]),(el[2],el[1]),(10,-3),color='C'+str(el[0][0]),textcoords='offset points')
+                    else:
+                        ax.semilogx(xmin,el[1],'.',c='C'+str(el[0][0]),marker='')
+                        ax.annotate(str(el[0]),(xmin,el[1]),(20,-3),color='C'+str(el[0][0]),textcoords='offset points',arrowprops={'arrowstyle':'->','color':'C'+str(el[0][0])})
+                
+            ax.axhline(fcav,linestyle='--',color='black')    
+            ax.set_xlabel(axdict[prop])
+            if k == 0:
+                ax.set_ylabel('Transition Frequency [GHz]')
+        plt.tight_layout()
         plt.show()
 
 #much simpler way of finding the relevant flux information based on a single flux sweep based on periodicity        
