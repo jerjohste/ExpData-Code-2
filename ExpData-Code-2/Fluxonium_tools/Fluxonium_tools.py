@@ -468,7 +468,7 @@ def fit_fluxonium_spectrum(spectrum_images,xs,ys,**topkwargs):
 
     # actual generation of the interactive plot
     plt.figure('Spectrum')
-    interactive_plot = interactive(update_plot, Ec=(0.1, 2,0.01), El=(0.1, 2,0.01),Ej=(0.1,5,0.1),alpha = (0,3,0.01),beta=(0,2,0.01))
+    interactive_plot = interactive(update_plot, Ec=(0.1, 2,0.01), El=(0.1, 2,0.01),Ej=(0.1,5,0.1),alpha = (0,64,0.01),beta=(-32,32,0.01))
     display(interactive_plot)
 
 #finds all the inverse images for a value of y given some data
