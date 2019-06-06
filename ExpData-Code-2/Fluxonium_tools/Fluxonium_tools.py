@@ -337,12 +337,14 @@ class Fluxonium:
             else:
                 ax = axs[k]
             toplot = tups[prop]
-            
+            xmin = np.min([ch[2] for ch in toplot])
+            xmax = np.max([ch[2] for ch in toplot])
+            step = (xmax-xmin)/2
             if prop == 'Dispersive_shift': # the dispersive shift plot is slightly difference than the others because of negative values
                 
                 for i, el in enumerate(toplot):
                     if el[2] != 0:
-                        ax.set_xscale('symlog')
+                        #ax.set_xscale('symlog')
                         ax.scatter(el[2],el[1],c='C'+str(el[0][0]))
                         ax.hlines(el[1],0,el[2],color='C'+str(el[0][0]))
                         if el[2] < 0:
@@ -352,7 +354,8 @@ class Fluxonium:
                     else:
                         ax.annotate(str(el[0]),(xmin,el[1]),(20,-3),color='C'+str(el[0][0]),textcoords='offset points',arrowprops={'arrowstyle':'->','color':'C'+str(el[0][0])})
                         ax.annotate('<---', (0,el[1]-0.1),color='C'+str(el[0][0]))
-                ax.axvline(x=0,linestyle='-',color='black',lw=0.5)            
+                ax.axvline(x=0,linestyle='-',color='black',lw=0.5)     
+                #ax.xaxis.set_ticks(np.arange(xmin,xmax,step))       
             
             else:
                 
