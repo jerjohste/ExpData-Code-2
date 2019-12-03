@@ -109,7 +109,7 @@ class Fluxonium:
         return transitions
         
     #plots the spectrum of the fluxonium object (with it's own parameters)
-    def plot_spectrum(self,phiext = np.linspace(0,1,101),lvls = [0,1,2]):
+    def plot_spectrum(self,phiext = 2*np.pi*np.linspace(0,1,101),lvls = [0,1,2]):
         #calculate transitions
         transitions = self.transition_spectrum(phiext=phiext,lvls=lvls)
 
@@ -120,7 +120,7 @@ class Fluxonium:
             for j in range(dimension):
                 jj = j + 1
                 if jj > i:
-                    plt.plot(phiext,transitions[:,i,jj],c='C'+str(i+jj),label=str(i)+'->'+str(jj))
+                    plt.plot(phiext/(2*np.pi),transitions[:,i,jj],c='C'+str(i+jj),label=str(i)+'->'+str(jj))
 
         plt.xlabel(r'Flux [/$\Phi_0$]')
         plt.ylabel('Frequency [GHz]')
@@ -435,7 +435,7 @@ def fit_fluxonium_spectrum(spectrum_images,xs,ys,**topkwargs):
     Xs, Ys = meshgrids(xs,ys)
     
     #helper function to plot fluxonium spectrum above an image
-    phiext = 2*np.pi*np.linspace(0,1,51)
+    phiext = 2*np.pi*np.linspace(-1,1,101)
     def update_plot(Ec,El,Ej,alpha,beta,**kwargs):
         
         model = Fluxonium(Ec,El,Ej,50)
@@ -448,7 +448,7 @@ def fit_fluxonium_spectrum(spectrum_images,xs,ys,**topkwargs):
             plt.pcolormesh(Xs[i],Ys[i],spectrum_images[i],vmin=vmin,vmax=vmax)
             
         #calculate transitions
-        transitions = model.transition_spectrum(phiext,lvls=[0,1,2])
+        transitions = model.transition_spectrum(phiext,lvls=[0,1,2,3])
         
         #plot overlay
         i,j,k = transitions.shape
@@ -457,7 +457,7 @@ def fit_fluxonium_spectrum(spectrum_images,xs,ys,**topkwargs):
         for jj in range(j):
             for kk in range(k):
                 if kk>jj:
-                    plt.plot(alpha*(phiext-np.median(phiext))+beta,transitions[:,jj,kk],c=colours[count],
+                    plt.plot(alpha*(phiext-np.median(phiext))+beta,transitions[:,jj,kk],#c=colours[count],#
                              label=str(jj)+'->'+str(kk))
                     count += 1
             

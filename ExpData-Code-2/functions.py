@@ -74,7 +74,7 @@ def plot_fluxonium_spectrum(**topkwargs):
         ylimited = False
                 
     #helper function to plot fluxonium spectrum above an image
-    flux = np.linspace(0,1,50)
+    flux = np.linspace(-2,2,50)
     def plot_FS(Ec=5,El=0.5,Ej=20,a=[0,1],N=1,alpha=1,beta=0,**kwargs):
                
         #clear figure
