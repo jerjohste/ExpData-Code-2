@@ -251,8 +251,8 @@ class Fluxonium:
     def plot_matrix_element(self,lvl0,lvl1,phiext = 2*np.pi*np.linspace(0,1,101),operator='charge'):
         from matplotlib.collections import LineCollection
 
-        transitions = self.transition_spectrum(phiext,[lvl0],lvl1)[:,lvl0,lvl1]
-        matrix_elements = [abs(self.matrix_element(lvl0,lvl1,flx,operator))**2 for flx in phiext]
+        transitions = self.transition_spectrum(phiext,np.arange(lvl0,lvl1+1))[:,lvl0,lvl1]
+        matrix_elements = [abs(self.matrix_element([lvl0,lvl1],flx,operator))[0,1]**2 for flx in phiext]
 
         points = np.array([phiext,transitions]).T.reshape(-1,1,2) #creates list of point defining the curve
         segments = np.concatenate([points[:-1], points[1:]], axis=1) #creates the segments defining the curve
