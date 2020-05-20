@@ -52,9 +52,14 @@ class Fluxonium:
 
         eigenvalues, eigenstates = H.eigenstates()
         eigenvalues = eigenvalues.round(5)
-
-        transition_mat = np.array([[eigenvalues[lvl2]-eigenvalues[lvl1] for lvl2 in lvls] for lvl1 in lvls])
-        transitions2D = np.where(transition_mat<0,0,transition_mat)
+        
+        M = np.amax(lvls)+1
+        transition_mat = np.zeros((M,M))
+        for i in range(M):
+            for j in range(M):
+                if i in lvls and j in lvls:
+                    transition_mat[i,j] = eigenvalues[i]-eigenvalues[j]
+        transitions2D = transition_mat.T#np.where(transition_mat<0,0,transition_mat)
 
         if full_info:
             return {'transitions': np.array(transitions2D), 'hamiltonian': H.copy(),
@@ -91,16 +96,22 @@ class Fluxonium:
         fluxonium_data = self.spectrum(phiext,lvls=np.arange(0,N+1,1),full_info = True)
         eigenstates = fluxonium_data['eigenstates']
         eigenenergies = fluxonium_data['eigenvals']
-        Phi = 2*np.pi*np.linspace(-1,1,100)
-        wavefunctions = [self.wave_function(eigenstates[i].full().flatten(),phi = Phi) + eigenenergies[i] for i in range(N)]
+        Phi = np.linspace(-1,1,100)
+        wavefunctions = np.array([self.wave_function(eigenstates[i].full().flatten(),phi = 2*np.pi*Phi) + eigenenergies[i] for i in range(N)])
         
+        potential_points = self.potential(Phi*2*np.pi,phiext)
         plt.figure()
-        plt.plot(Phi,self.potential(Phi*2*np.pi,phiext),c='C0')
+        plt.plot(Phi,potential_points,c='C0')
         for i in range(N):
-            plt.plot(Phi,abs(wavefunctions[i]),c='C'+str(i+1))
+            #*(eigenenergies[-1]-eigenenergies[0])*0.1
+            plt.plot(Phi,wavefunctions[i],c='C'+str(i+1))
             plt.plot(Phi,np.ones(len(Phi))*eigenenergies[i],'--',c='C'+str(i+1))
         plt.ylabel('Frequency [GHz]')
         plt.xlabel(r'Flux [/$\Phi_0$]')
+        ymax = np.amax(wavefunctions.flatten())
+        ymin = np.amin(potential_points)
+        ybounds = (ymin*1.1,ymax*1.1)
+        plt.ylim(ybounds)
         plt.show()
         
     #calculates the transitions over a wide flux span
@@ -114,13 +125,10 @@ class Fluxonium:
         transitions = self.transition_spectrum(phiext=phiext,lvls=lvls)
 
         plt.figure('Spectrum')
-        
-        dimension = len(lvls)-1
-        for i in range(dimension):
-            for j in range(dimension):
-                jj = j + 1
-                if jj > i:
-                    plt.plot(phiext/(2*np.pi),transitions[:,i,jj],c='C'+str(i+jj),label=str(i)+'->'+str(jj))
+        for i in lvls[:-1]:
+            for j in lvls[1:]:
+                if j > i:
+                    plt.plot(phiext/(2*np.pi),transitions[:,i,j],c='C'+str(i+j),label=str(i)+'->'+str(j))
 
         plt.xlabel(r'Flux [/$\Phi_0$]')
         plt.ylabel('Frequency [GHz]')
@@ -154,22 +162,29 @@ class Fluxonium:
         def sum_element(lvla,lvlb):
             return -abs(n.matrix_element(eigenstates[lvla].dag(),eigenstates[lvlb]))**2*2*transitions[lvla,lvlb] \
                         /(transitions[lvla,lvlb]**2-fcav**2)
-
-        chis = np.zeros_like(lvls,dtype=float)
-        for index, lvl in enumerate(lvls):
-            for i in range(self.Hilbert_dim-1):
-                chis[index] += sum_element(lvl,i)
-        shifts = np.array([[chis[j]-chis[i] for i in range(len(chis))] for j in range(len(chis))])
-        return chis*g**2, shifts*g**2
+                        
+        M = np.amax(lvls)+1
+        chis = np.zeros(M,dtype=float)
+        shifts = np.zeros((M,M),dtype=float)
+        for lvl in range(M):
+            if lvl in lvls:
+                for i in range(self.Hilbert_dim-1):
+                    chis[lvl] += sum_element(lvl,i)
+        for i in range(M):
+            for j in range(M):
+                if i in lvls and j in lvls:
+                    shifts[i,j] = chis[j]-chis[i]
+        #shifts = np.array([[chis[j]-chis[i] for i in range(M) if i in lvls and j in lvls] for j in range(M)])
+        return chis*g**2, shifts.T*g**2
     
     #plots the dispersive shift calculated for the flux poiints given by phiext
     def plot_dispersive_shift(self,lvl0,lvl1,fcav,phiext=2*np.pi*np.linspace(0,1,101)):
         from matplotlib.collections import LineCollection
         
         transitions = self.transition_spectrum(phiext,[lvl0,lvl1])[:,lvl0,lvl1]
-        shifts = [self.dispersive_shift([lvl0,lvl1],fcav,flx)[1][0,1] for flx in phiext] 
+        shifts = [self.dispersive_shift([lvl0,lvl1],fcav,flx)[1][lvl0,lvl1] for flx in phiext] 
         
-        points = np.array([phiext,transitions]).T.reshape(-1,1,2) #creates list of point defining the curve
+        points = np.array([phiext/(2*np.pi),transitions]).T.reshape(-1,1,2) #creates list of point defining the curve
         segments = np.concatenate([points[:-1], points[1:]], axis=1) #creates the segments defining the curve
         
         fig, axs = plt.subplots(2,1,sharex=True)
@@ -181,12 +196,12 @@ class Fluxonium:
         line = ax1.add_collection(lc)
         cbaxes = fig.add_axes([0.79, 0.55, 0.01, 0.25]) 
         cb = plt.colorbar(line, cax = cbaxes)  
-        ax1.set_xlim(phiext.min(), phiext.max())
+        ax1.set_xlim(phiext.min()/(2*np.pi), phiext.max()/(2*np.pi))
         ax1.set_ylim(np.min(transitions)-0.1, np.max(transitions)+0.1)
         ax1.set_ylabel('Frequency [GHz]')
 
-        ax2.plot(phiext,shifts)
-        ax2.plot(phiext,np.zeros(len(phiext)),'r--')
+        ax2.plot(phiext/(2*np.pi),shifts)
+        ax2.plot(phiext/(2*np.pi),np.zeros(len(phiext)),'r--')
         ax2.set_ylabel('Frequency [GHz]')
         ax2.set_xlabel(r'Flux [/$\Phi_0$]')
         plt.show()
@@ -244,17 +259,25 @@ class Fluxonium:
         fluxonium_data = self.spectrum(phiext,[0,1],full_info = True)
         eigenstates = fluxonium_data['eigenstates']
         op = fluxonium_data[operator+'_op']
-        mat_els = np.array([[op.matrix_element(eigenstates[lvl1].dag(),eigenstates[lvl2]) for lvl2 in lvls] for lvl1 in lvls])
+        
+        M = np.amax(lvls)+1
+        mat_els = np.zeros((M,M),dtype=np.complex)
+        for i in range(M):
+            for j in range(M):
+                if i in lvls and j in lvls:
+                    mat_els[i,j] = op.matrix_element(eigenstates[i].dag(),eigenstates[j])
+        
+        #mat_els = np.array([[op.matrix_element(eigenstates[lvl1].dag(),eigenstates[lvl2]) for lvl2 in lvls] for lvl1 in lvls])
         return mat_els
 
     #plot the matrix elements for the flux points given by phiext
     def plot_matrix_element(self,lvl0,lvl1,phiext = 2*np.pi*np.linspace(0,1,101),operator='charge'):
         from matplotlib.collections import LineCollection
 
-        transitions = self.transition_spectrum(phiext,np.arange(lvl0,lvl1+1))[:,lvl0,lvl1]
-        matrix_elements = [abs(self.matrix_element([lvl0,lvl1],flx,operator))[0,1]**2 for flx in phiext]
+        transitions = self.transition_spectrum(phiext,[lvl0,lvl1])[:,lvl0,lvl1]
+        matrix_elements = [abs(self.matrix_element([lvl0,lvl1],flx,operator)[lvl0,lvl1])**2 for flx in phiext]
 
-        points = np.array([phiext,transitions]).T.reshape(-1,1,2) #creates list of point defining the curve
+        points = np.array([phiext/(2*np.pi),transitions]).T.reshape(-1,1,2) #creates list of point defining the curve
         segments = np.concatenate([points[:-1], points[1:]], axis=1) #creates the segments defining the curve
 
         fig, axs = plt.subplots(2,1,sharex=True)
@@ -266,11 +289,11 @@ class Fluxonium:
         line = ax1.add_collection(lc)
         cbaxes = fig.add_axes([0.79, 0.55, 0.01, 0.25]) 
         cb = plt.colorbar(line, cax = cbaxes)  
-        ax1.set_xlim(phiext.min(), phiext.max())
+        ax1.set_xlim(phiext.min()/(2*np.pi), phiext.max()/(2*np.pi))
         ax1.set_ylim(np.min(transitions)-0.1, np.max(transitions)+0.1)
         ax1.set_ylabel('Frequency [GHz]')
 
-        ax2.plot(phiext,matrix_elements)
+        ax2.plot(phiext/(2*np.pi),matrix_elements)
         ax2.set_ylabel('Matrix Element Magnitude [a.u.]')
         ax2.set_xlabel(r'Flux [/$\Phi_0$]')        
         plt.show()
