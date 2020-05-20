@@ -315,17 +315,17 @@ class Fluxonium:
         axdict = dict(zip(keylist,axlabels))
 
         transitions = list(itertools.combinations(levels,2)) # make pairs of levels
-        freqs = self.spectrum(0.5*np.pi*2,levels)['transitions'] # obtain transition frequencies
+        freqs = self.spectrum(phiext,levels)['transitions'] # obtain transition frequencies
         tups = {} # define empty dict which we will use for the data later in tuple form
         
         if 'Dispersive_shift' in prop_list:
-            shifts = self.dispersive_shift(levels,fcav,0.5*np.pi*2) # calculate dispersive shifts
+            shifts = self.dispersive_shift(levels,fcav,phiext) # calculate dispersive shifts
             freq_shift_tups = [(trans,freqs[trans],shifts[1][trans]) for trans in transitions] #create tuple
             tups['Dispersive_shift'] = freq_shift_tups #add to dict
             
         if 'Rabi_charge' in prop_list:
             if 'charge' not in locals():
-                charge = self.matrix_element(levels,0.5*np.pi*2,'charge')
+                charge = self.matrix_element(levels,phiext,'charge')
             freq_chargerabi_tups = [(trans,freqs[trans],
                                     np.sqrt(freqs[trans]/(ktot**2+4*(fcav-freqs[trans])**2))*abs(charge[trans])) \
                                 for trans in transitions]
@@ -333,13 +333,13 @@ class Fluxonium:
             
         if 'Charge_matrix_els' in prop_list:
             if 'charge' not in locals():
-                charge = self.matrix_element(levels,0.5*np.pi*2,'charge')
+                charge = self.matrix_element(levels,phiext,'charge')
             freq_charge_tups = [(trans,freqs[trans],abs(charge[trans])) for trans in transitions]
             tups['Charge_matrix_els'] = freq_charge_tups
             
         if 'Rabi_phase' in prop_list:
             if 'phase' not in locals():
-                phase = self.matrix_element(levels,0.5*np.pi*2,'phase')
+                phase = self.matrix_element(levels,phiext,'phase')
             freq_phaserabi_tups = [(trans,freqs[trans],
                                     np.sqrt(freqs[trans]**1.5/(ktot**2+4*(fcav-freqs[trans])**2))*abs(phase[trans])) \
                                 for trans in transitions]
@@ -347,7 +347,7 @@ class Fluxonium:
             
         if 'Phase_matrix_els' in prop_list:
             if 'phase' not in locals():
-                phase = self.matrix_element(levels,0.5*np.pi*2,'phase')
+                phase = self.matrix_element(levels,phiext,'phase')
             freq_phase_tups = [(trans,freqs[trans],abs(phase[trans])) for trans in transitions]
             tups['Phase_matrix_els'] = freq_phase_tups
             
@@ -377,7 +377,7 @@ class Fluxonium:
                     else:
                         ax.annotate(str(el[0]),(xmin,el[1]),(20,-3),color='C'+str(el[0][0]),textcoords='offset points',arrowprops={'arrowstyle':'->','color':'C'+str(el[0][0])})
                         ax.annotate('<---', (0,el[1]-0.1),color='C'+str(el[0][0]))
-                ax.axvline(x=0,linestyle='-',color='black',lw=0.5)     
+                ax.axvline(x=0,linestyle='-',color='black',lw=0.5)
                 #ax.xaxis.set_ticks(np.arange(xmin,xmax,step))       
             
             else:
@@ -394,6 +394,7 @@ class Fluxonium:
                 
             ax.axhline(fcav,linestyle='--',color='black')    
             ax.set_xlabel(axdict[prop])
+            ax.set_title(prop)
             if k == 0:
                 ax.set_ylabel('Transition Frequency [GHz]')
         plt.tight_layout()
