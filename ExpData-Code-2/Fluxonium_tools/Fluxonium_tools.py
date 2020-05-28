@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import hermite
 from math import factorial
-from scipy.interpolate import spline
+from scipy.interpolate import splrep
 from matplotlib.colors import Normalize, LogNorm
 from IPython.display import display
 import itertools
@@ -512,7 +512,7 @@ def find_all_x_for_y(datax,datay,y0,tol=1e-3):
         return x0s
     
     def data_spline(xs):
-        return spline(datax,datay,xs)
+        return splrep(datax,datay,xs)
     
     #lowerindexes = upperindexes-1
     upperindexes = lowerindexes+1
