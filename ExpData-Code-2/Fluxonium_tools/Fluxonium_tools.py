@@ -43,6 +43,7 @@ class Fluxonium:
     #It calculates the transisitions from all levels in lvls to all levels in lvls, negative frequencies are given as 0
     #Can return various Hamiltonian parameters as well if needed
     #Transitions has dimensions (Nmax+1,Nmax+1) so that you can look up the transition from i to j by looking at the element (i,j). ! (j,i) for j>i will not be filled
+    
     def spectrum(self,phiext,lvls=[0,1],full_info = False): 
         N = len(lvls) #this means Nmax is included
         if full_info:
@@ -104,7 +105,7 @@ class Fluxonium:
         plt.plot(Phi,potential_points,c='C0')
         for i in range(N):
             #*(eigenenergies[-1]-eigenenergies[0])*0.1
-            plt.plot(Phi,wavefunctions[i],c='C'+str(i+1))
+            plt.plot(Phi,wavefunctions[i].real,c='C'+str(i+1))
             plt.plot(Phi,np.ones(len(Phi))*eigenenergies[i],'--',c='C'+str(i+1))
         plt.ylabel('Frequency [GHz]')
         plt.xlabel(r'Flux [/$\Phi_0$]')
@@ -132,7 +133,7 @@ class Fluxonium:
 
         plt.xlabel(r'Flux [/$\Phi_0$]')
         plt.ylabel('Frequency [GHz]')
-        plt.legend(loc='best')
+        plt.legend(loc='lower right')
         plt.show()
         
     #gives the thermal occupation of the first N states of the fluxonium at temperature T and flux phiext
