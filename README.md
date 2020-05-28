@@ -1,4 +1,4 @@
 # ExpData-Code-2
 Code used to simulate Fluxonium qubit and its measurements.
 
-Coucou Jeremy
+The code is based on the Qutip package.
