@@ -92,6 +92,18 @@ class Fluxonium:
         funcvals = [self.fock_state(phi,float(n)) for n in range(len(coefs))]
         return np.dot(coefs,funcvals)
     
+    #Return the N first wavefunctions for a given flux bias, and on a range phi_max
+    def return_wave_functions(self, N, phiext, phi_max):
+        fluxonium_data = self.spectrum(phiext,lvls=np.arange(0,N+1,1),full_info = True)
+        eigenstates = fluxonium_data['eigenstates']
+        eigenenergies = fluxonium_data['eigenvals']
+        Phi = np.linspace(-phi_max, phi_max, 101)
+        wavefunctions = np.array([self.wave_function(eigenstates[i].full().flatten(),phi = 2*np.pi*Phi) + eigenenergies[i] for i in range(N)])
+        potential_points = self.potential(Phi*2*np.pi,phiext)
+        
+        return (Phi, wavefunctions, eigenenergies, potential_points)
+        
+
     #plots the fluxonium potential with its N first wavefunctions for a given flux bias
     def show_wave_functions(self,N,phiext):
         fluxonium_data = self.spectrum(phiext,lvls=np.arange(0,N+1,1),full_info = True)
