@@ -11,6 +11,7 @@ from IPython.display import display
 import itertools
 
 #helper class to define the fancy color scales
+
 class MidpointNormalize(Normalize):
         def __init__(self, vmin=None, vmax=None, midpoint=None, clip=False):
             self.midpoint = midpoint
@@ -28,7 +29,7 @@ class Fluxonium:
         self.Hilbert_dim = dim
         
     #returns a qubit object with the different fluxonium operators
-    def H_fluxonium(self,phiext,operators = False):
+    def H_fluxonium(self, phiext, operators = False):
         a = qt.destroy(self.Hilbert_dim)
         num = 1j*(a.dag()-a)/(np.sqrt(2*np.sqrt(8*self.Ec/self.El)))
         phi = (a+a.dag())*(np.sqrt(np.sqrt(8*self.Ec/self.El)/2))
@@ -60,7 +61,7 @@ class Fluxonium:
             for j in range(M):
                 if i in lvls and j in lvls:
                     transition_mat[i,j] = eigenvalues[i]-eigenvalues[j]
-        transitions2D = transition_mat.T#np.where(transition_mat<0,0,transition_mat)
+        transitions2D = transition_mat.T #np.where(transition_mat<0,0,transition_mat)
 
         if full_info:
             return {'transitions': np.array(transitions2D), 'hamiltonian': H.copy(),
@@ -87,7 +88,7 @@ class Fluxonium:
         Kinv = 1/np.sqrt(8*self.Ec/self.El)
         return 1/np.sqrt(2**n*factorial(n))*(Kinv/np.pi)**0.25*np.exp(-Kinv*phi**2/2)*hermite(int(n))(np.sqrt(Kinv)*phi)
     
-    #defines the wavefunction given by a series of coeficients multiplying fock states
+    #defines the wavefunction given by a series of coefficients multiplying fock states
     def wave_function(self,coefs,phi):
         funcvals = [self.fock_state(phi,float(n)) for n in range(len(coefs))]
         return np.dot(coefs,funcvals)
@@ -162,9 +163,15 @@ class Fluxonium:
         return occupations
 
     #calculates the dispersive shift of all the transitions in the list lvls and optionnally returns the matrix of the two by two differences
-    def dispersive_shift(self,lvls,fcav,phiext,g=1):
+    
+    def dispersive_shift(self, lvls, fcav, phiext, g=1, inductive_coupling = False):
         fluxonium_data = self.spectrum(phiext,np.arange(0,self.Hilbert_dim,1),full_info = True)
-        n = fluxonium_data['charge_op']
+        
+        if inductive_coupling:
+            n = fluxonium_data['phase_op']
+        else:
+            n = fluxonium_data['charge_op']
+
         eigenstates = fluxonium_data['eigenstates']
         transitions = fluxonium_data['transitions']
 
