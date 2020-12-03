@@ -275,10 +275,14 @@ class Fluxonium:
         display(interactive_plot)
 
     #find the matrix element of given transition mediated by a given operator
-    def matrix_element(self,lvls,phiext,operator='charge'): #possible operators: 'charge', 'phase'
+    def matrix_element(self,lvls,phiext,operator='charge',function=None): #possible operators: 'charge', 'phase'
         fluxonium_data = self.spectrum(phiext,[0,1],full_info = True)
         eigenstates = fluxonium_data['eigenstates']
         op = fluxonium_data[operator+'_op']
+        if function	== 'sine':
+            op = op.sinm()
+        if function == 'cosine':
+            op = op.cosm()
         
         M = np.amax(lvls)+1
         mat_els = np.zeros((M,M),dtype=np.complex)
@@ -413,6 +417,8 @@ class Fluxonium:
                         ax.annotate(str(el[0]),(xmin,el[1]),(20,-3),color='C'+str(el[0][0]),textcoords='offset points',arrowprops={'arrowstyle':'->','color':'C'+str(el[0][0])})
                 
             ax.axhline(fcav,linestyle='--',color='black')    
+            ax.axhline(2*fcav,linestyle='--',color='black')    
+            ax.axhline(3*fcav,linestyle='--',color='black')    
             ax.set_xlabel(axdict[prop])
             ax.set_title(prop)
             if k == 0:
